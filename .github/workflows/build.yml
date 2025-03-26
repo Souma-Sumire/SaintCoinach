@@ -22,7 +22,6 @@ jobs:
       - name: Build
         run: dotnet build -c Release
       - name: Create Release ZIPs
-        if: ${{ github.ref == 'refs/heads/master' }}
         run: |
           mkdir release-out
           Compress-Archive -Path .\Godbert\bin\Release\net7.0-windows\* -DestinationPath .\release-out\Godbert.zip -Force
@@ -30,7 +29,6 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        if: ${{ github.ref == 'refs/heads/master' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
