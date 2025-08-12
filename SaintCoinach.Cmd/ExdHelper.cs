@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace SaintCoinach.Cmd {
     using Ex;
+    using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using Xiv;
 
     static class ExdHelper {
@@ -41,42 +42,53 @@ namespace SaintCoinach.Cmd {
 
         public static void WriteRows(StreamWriter s, ISheet sheet, Language language, IEnumerable<int> colIndices, bool writeRaw) {
             if (sheet.Header.Variant == 1)
-                WriteRowsCore(s, sheet.Cast<Ex.IRow>(), language, colIndices, writeRaw, WriteRowKey);
+                WriteRowsCore(s, sheet.Cast<Ex.IRow>(), language, colIndices, writeRaw, WriteRowKey, sheet.Name);
             else {
                 var rows = sheet.Cast<XivRow>().Select(_ => (Ex.Variant2.DataRow)_.SourceRow);
                 foreach (var parentRow in rows.OrderBy(_ => _.Key))
-                    WriteRowsCore(s, parentRow.SubRows, language, colIndices, writeRaw, WriteSubRowKey);
+                    WriteRowsCore(s, parentRow.SubRows, language, colIndices, writeRaw, WriteSubRowKey, sheet.Name);
             }
         }
 
-        static void WriteRowsCore(StreamWriter s, IEnumerable<Ex.IRow> rows, Language language, IEnumerable<int> colIndices, bool writeRaw, Action<StreamWriter, Ex.IRow> writeKey) {
+        static void WriteRowsCore(StreamWriter s, IEnumerable<Ex.IRow> rows, Language language, IEnumerable<int> colIndices, bool writeRaw, Action<StreamWriter, Ex.IRow> writeKey, String sheetName) {
             foreach (var row in rows.OrderBy(_ => _.Key)) {
-                var useRow = row;
+                try {
+                    var useRow = row;
 
-                if (useRow is IXivRow)
-                    useRow = ((IXivRow)row).SourceRow;
-                var multiRow = useRow as IMultiRow;
+                    if (useRow is IXivRow)
+                        useRow = ((IXivRow)row).SourceRow;
+                    var multiRow = useRow as IMultiRow;
 
-                writeKey(s, useRow);
-                foreach (var col in colIndices) {
-                    object v;
+                    writeKey(s, useRow);
+                    foreach (var col in colIndices) {
+                        object v;
 
-                    if (language == Language.None || multiRow == null)
-                        v = writeRaw ? useRow.GetRaw(col) : useRow[col];
-                    else
-                        v = writeRaw ? multiRow.GetRaw(col, language) : multiRow[col, language];
+                        if (language == Language.None || multiRow == null)
+                            v = writeRaw ? useRow.GetRaw(col) : useRow[col];
+                        else
+                            v = writeRaw ? multiRow.GetRaw(col, language) : multiRow[col, language];
 
-                    s.Write(",");
-                    if (v == null)
-                        continue;
-                    else if (IsUnescaped(v))
-                        s.Write(string.Format(_culture, "{0}", v));
-                    else
-                        s.Write("\"{0}\"", v.ToString().Replace("\"", "\"\""));
+                        s.Write(",");
+                        if (v == null)
+                            continue;
+                        else if (IsUnescaped(v))
+                            s.Write(string.Format(_culture, "{0}", v));
+                        else
+                            s.Write("\"{0}\"", v.ToString().Replace("\"", "\"\""));
+                    }
+                    s.WriteLine();
+
+                    s.Flush();
                 }
-                s.WriteLine();
-
-                s.Flush();
+                catch {
+                    if (sheetName == "CustomTalkDefineClient" || sheetName == "QuestDefineClient") {
+                        return;
+                    }
+                    var originalColor = Console.ForegroundColor;
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"{sheetName} #{row.Key} 出错了");
+                    Console.ForegroundColor = originalColor;
+                }
             }
         }
 
