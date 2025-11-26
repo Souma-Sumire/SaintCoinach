@@ -38,6 +38,7 @@ namespace SaintCoinach.Ex {
                 yield return Language.ChineseSimplified;
                 yield return Language.ChineseTraditional;
                 yield return Language.Korean;
+                yield return Language.TraditionalChinese;
             }
         }
 
